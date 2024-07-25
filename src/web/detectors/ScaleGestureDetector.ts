@@ -42,21 +42,23 @@ export default class ScaleGestureDetector implements ScaleGestureListener {
     this.currentTime = event.time;
 
     const action: EventTypes = event.eventType;
-    const numOfPointers = tracker.getTrackedPointersCount();
+
+    const isAdditionalPointerUp = action === EventTypes.ADDITIONAL_POINTER_UP;
 
     const streamComplete: boolean =
       action === EventTypes.UP ||
       action === EventTypes.ADDITIONAL_POINTER_UP ||
+      action === EventTypes.DOWN ||
       action === EventTypes.CANCEL;
 
-    if (action === EventTypes.DOWN || streamComplete) {
+    if (streamComplete) {
       if (this.inProgress) {
         this.onScaleEnd(this);
         this.inProgress = false;
         this.initialSpan = 0;
       }
 
-      if (streamComplete) {
+      if (action !== EventTypes.DOWN) {
         return true;
       }
     }
@@ -66,37 +68,32 @@ export default class ScaleGestureDetector implements ScaleGestureListener {
       action === EventTypes.ADDITIONAL_POINTER_UP ||
       action === EventTypes.ADDITIONAL_POINTER_DOWN;
 
-    const pointerUp = action === EventTypes.ADDITIONAL_POINTER_UP;
-
-    const ignoredPointer: number | undefined = pointerUp
+    const ignoredPointer: number | undefined = isAdditionalPointerUp
       ? event.pointerId
       : undefined;
 
     // Determine focal point
 
-    const div: number = pointerUp ? numOfPointers - 1 : numOfPointers;
+    const numOfPointers =
+      tracker.getTrackedPointersCount() - (isAdditionalPointerUp ? 1 : 0);
 
-    const coordsSum = tracker.getAbsoluteCoordsSum();
-
-    const focusX = coordsSum.x / div;
-    const focusY = coordsSum.y / div;
+    const focus = tracker.getAbsoluteCoordsAverage();
 
     // Determine average deviation from focal point
 
-    let devSumX = 0;
-    let devSumY = 0;
+    const devSum = { x: 0, y: 0 };
 
     tracker.getData().forEach((value, key) => {
       if (key === ignoredPointer) {
         return;
       }
 
-      devSumX += Math.abs(value.abosoluteCoords.x - focusX);
-      devSumY += Math.abs(value.abosoluteCoords.y - focusY);
+      devSum.x += Math.abs(value.abosoluteCoords.x - focus.x);
+      devSum.y += Math.abs(value.abosoluteCoords.y - focus.y);
     });
 
-    const devX: number = devSumX / div;
-    const devY: number = devSumY / div;
+    const devX: number = devSum.x / numOfPointers;
+    const devY: number = devSum.y / numOfPointers;
 
     const spanX: number = devX * 2;
     const spanY: number = devY * 2;
@@ -104,9 +101,10 @@ export default class ScaleGestureDetector implements ScaleGestureListener {
     const span = Math.hypot(spanX, spanY);
 
     // Begin/end events
+
     const wasInProgress: boolean = this.inProgress;
-    this.focusX = focusX;
-    this.focusY = focusY;
+    this.focusX = focus.x;
+    this.focusY = focus.y;
 
     if (this.inProgress && (span < this.minSpan || configChanged)) {
       this.onScaleEnd(this);
@@ -129,6 +127,7 @@ export default class ScaleGestureDetector implements ScaleGestureListener {
     }
 
     // Handle motion
+
     if (action !== EventTypes.MOVE) {
       return true;
     }

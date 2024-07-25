@@ -1,11 +1,38 @@
 import React from 'react';
-import { StyleSheet, View, Image } from 'react-native';
+import { StyleSheet, View, Image, ColorValue } from 'react-native';
 import Animated, {
+  SharedValue,
   useAnimatedStyle,
   useSharedValue,
 } from 'react-native-reanimated';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import { useState } from 'react';
+
+type Coordinate = { x: number; y: number };
+
+function Pointer({
+  coordinates,
+  color,
+}: {
+  coordinates: SharedValue<Coordinate>;
+  color?: ColorValue;
+}) {
+  const positionStyle = useAnimatedStyle(() => {
+    return {
+      backgroundColor: color,
+      position: 'absolute',
+      width: 16,
+      height: 16,
+      borderRadius: 8,
+      transform: [
+        { translateX: coordinates.value.x - 8 },
+        { translateY: coordinates.value.y - 8 },
+      ],
+    };
+  }, [coordinates]);
+
+  return <Animated.View style={positionStyle} />;
+}
 
 function identity4() {
   'worklet';
@@ -73,6 +100,19 @@ function rotate4(rad: number, x: number, y: number, z: number) {
   ];
 }
 
+function log4(m: number[]) {
+  'worklet';
+  let output = '\n';
+  for (let i = 0; i < m.length; i++) {
+    if (i % 4 === 0) {
+      output += '\n\n';
+    }
+    output += m[i].toFixed(1) + '  ';
+  }
+
+  console.log(output);
+}
+
 function invert2(m: number[]) {
   'worklet';
   const a = m[0];
@@ -84,10 +124,7 @@ function invert2(m: number[]) {
   return [d / det, -b / det, -c / det, a / det];
 }
 
-function toTransformedCoords(
-  point: { x: number; y: number },
-  matrix: number[]
-) {
+function toTransformedCoords(point: Coordinate, matrix: number[]) {
   'worklet';
   const m2 = [matrix[0], matrix[1], matrix[4], matrix[5]];
   const inv = invert2(m2);
@@ -100,10 +137,10 @@ function toTransformedCoords(
 }
 
 function createMatrix(
-  translation: { x: number; y: number },
+  translation: Coordinate,
   scale: number,
   rotation: number,
-  origin: { x: number; y: number }
+  origin: Coordinate
 ) {
   'worklet';
   let matrix = identity4();
@@ -113,6 +150,7 @@ function createMatrix(
     matrix = multiply4(matrix, scale4(scale, scale, 1));
     matrix = multiply4(matrix, translate4(-origin.x, -origin.y, 0));
   }
+
   if (rotation !== 0) {
     matrix = multiply4(matrix, translate4(origin.x, origin.y, 0));
     matrix = multiply4(matrix, rotate4(-rotation, 0, 0, 1));
@@ -123,14 +161,16 @@ function createMatrix(
     matrix = multiply4(matrix, translate4(translation.x, translation.y, 0));
   }
 
+  // log4(matrix);
+
   return matrix;
 }
 
 function applyTransformations(
-  translation: { x: number; y: number },
+  translation: Coordinate,
   scale: number,
   rotation: number,
-  origin: { x: number; y: number },
+  origin: Coordinate,
   matrix: number[]
 ) {
   'worklet';
@@ -149,11 +189,16 @@ const SIGNET = require('../../ListWithHeader/signet.png');
 function Photo() {
   const [size, setSize] = useState({ width: 0, height: 0 });
   const translation = useSharedValue({ x: 0, y: 0 });
-  const origin = useSharedValue({ x: 0, y: 0 });
+  const origin = useSharedValue({ x: size.width / 2, y: size.height / 2 });
   const scale = useSharedValue(1);
   const rotation = useSharedValue(0);
   const isRotating = useSharedValue(false);
   const isScaling = useSharedValue(false);
+
+  const pointerScale = useSharedValue({ x: 0, y: 0 });
+  const pointerTwo = useSharedValue({ x: 0, y: 0 });
+  const pointerOne = useSharedValue({ x: 0, y: 0 });
+  const pointerRot = useSharedValue({ x: 0, y: 0 });
 
   const transform = useSharedValue(identity4());
 
@@ -177,18 +222,20 @@ function Photo() {
   });
 
   const rotationGesture = Gesture.Rotation()
-    .onStart((e) => {
+    .onStart((event) => {
+      'worklet';
+      pointerRot.value = { x: event.anchorX, y: event.anchorY };
+
       if (!isRotating.value && !isScaling.value) {
         origin.value = {
-          x: -(e.anchorX - size.width / 2),
-          y: -(e.anchorY - size.height / 2),
+          x: size.width / 2 - event.anchorX,
+          y: size.height / 2 - event.anchorY,
         };
       }
       isRotating.value = true;
     })
-    .onChange((e) => {
-      'worklet';
-      rotation.value += e.rotationChange;
+    .onChange((event) => {
+      rotation.value = event.rotation;
     })
     .onEnd(() => {
       'worklet';
@@ -207,18 +254,36 @@ function Photo() {
     });
 
   const scaleGesture = Gesture.Pinch()
-    .onStart((e) => {
+    .onTouchesMove((event) => {
+      'worklet';
+      pointerOne.value = {
+        x: event.allTouches[0]?.x ?? 0,
+        y: event.allTouches[0]?.y ?? 0,
+      };
+
+      pointerTwo.value = {
+        x: event.allTouches[1]?.x ?? 0,
+        y: event.allTouches[1]?.y ?? 0,
+      };
+    })
+    .onStart((event) => {
+      'worklet';
       if (!isRotating.value && !isScaling.value) {
+        pointerScale.value = { x: event.focalX, y: event.focalY };
+
         origin.value = {
-          x: -(e.focalX - size.width / 2),
-          y: -(e.focalY - size.height / 2),
+          x: size.width / 2 - event.focalX,
+          y: size.height / 2 - event.focalY,
         };
+        console.log('d:', size.width, size.height);
+        console.log('f:', event.focalX, event.focalY);
+        console.log('o:', origin.value.x, origin.value.y);
       }
       isScaling.value = true;
     })
-    .onChange((e) => {
+    .onChange((event) => {
       'worklet';
-      scale.value *= e.scaleChange;
+      scale.value = event.scale;
     })
     .onEnd(() => {
       'worklet';
@@ -237,11 +302,11 @@ function Photo() {
 
   const panGesture = Gesture.Pan()
     .averageTouches(true)
-    .onChange((e) => {
+    .onChange((event) => {
       'worklet';
       translation.value = {
-        x: translation.value.x + e.changeX,
-        y: translation.value.y + e.changeY,
+        x: translation.value.x + event.changeX,
+        y: translation.value.y + event.changeY,
       };
     })
     .onEnd(() => {
@@ -269,10 +334,10 @@ function Photo() {
     });
 
   const gesture = Gesture.Simultaneous(
-    rotationGesture,
-    scaleGesture,
-    panGesture,
-    doubleTapGesture
+    // rotationGesture,
+    scaleGesture
+    // panGesture,
+    // doubleTapGesture
   );
 
   return (
@@ -286,6 +351,11 @@ function Photo() {
         }}
         style={[styles.container, style]}>
         <Image source={SIGNET} style={styles.image} resizeMode="contain" />
+        <Pointer coordinates={pointerScale} color={'red'} />
+        <Pointer coordinates={pointerRot} color={'green'} />
+        <Pointer coordinates={pointerOne} color={'#aa0'} />
+        <Pointer coordinates={pointerTwo} color={'#aaf'} />
+        <Pointer coordinates={origin} color={'#0ff'} />
       </Animated.View>
     </GestureDetector>
   );
@@ -320,5 +390,11 @@ const styles = StyleSheet.create({
   image: {
     width: 208,
     height: 208,
+  },
+  infobox: {
+    position: 'absolute',
+    bottom: 20,
+    left: 10,
+    height: 70, // magic - minimum height for 4 lines of text on all platforms
   },
 });
