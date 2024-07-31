@@ -10,6 +10,7 @@ import {
   ViewStyle,
   processColor,
   StyleSheet,
+  ViewProps,
 } from 'react-native';
 import NativeButton from '../GestureHandlerButton';
 import {
@@ -19,6 +20,7 @@ import {
   gestureTouchToPressableEvent,
   addInsets,
   splitStyles,
+  extractInteractivityProps,
 } from './utils';
 import { PressabilityDebugView } from '../../handlers/PressabilityDebugView';
 import { GestureTouchEvent } from '../../handlers/gestureHandlerCommon';
@@ -372,9 +374,10 @@ export default function Pressable(props: PressableProps) {
   const flattenedStyles = StyleSheet.flatten(styleProp ?? {});
 
   const [innerStyles, outerStyles] = splitStyles(flattenedStyles);
+  const interactionProps = extractInteractivityProps(props as ViewProps);
 
   return (
-    <View style={outerStyles}>
+    <View style={outerStyles} {...interactionProps}>
       <GestureDetector gesture={gesture}>
         <NativeButton
           ref={pressableRef}

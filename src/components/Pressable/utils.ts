@@ -1,4 +1,4 @@
-import { Insets, ViewStyle } from 'react-native';
+import { Insets, ViewProps, ViewStyle } from 'react-native';
 import { LongPressGestureHandlerEventPayload } from '../../handlers/GestureHandlerEventPayload';
 import {
   TouchData,
@@ -170,6 +170,42 @@ const splitStyles = (from: ViewStyle): [ViewStyle, ViewStyle] => {
   return [innerStyles, outerStyles];
 };
 
+type InteractivePropKeys = (keyof ViewProps)[];
+
+// Source:
+// -
+const interactivePropKeys = new Set([
+  'onTouchStart',
+  'onTouchMove',
+  'onTouchEnd',
+  'onTouchCancel',
+  'onTouchEndCapture',
+  'onPointerEnter',
+  'onPointerEnterCapture',
+  'onPointerLeave',
+  'onPointerLeaveCapture',
+  'onPointerMove',
+  'onPointerMoveCapture',
+  'onPointerCancel',
+  'onPointerCancelCapture',
+  'onPointerDown',
+  'onPointerDownCapture',
+  'onPointerUp',
+  'onPointerUpCapture',
+] as InteractivePropKeys);
+
+const extractInteractivityProps = (from: ViewProps): ViewProps => {
+  const interactivityProps: Record<string, unknown> = {};
+
+  for (const key in from) {
+    if (interactivePropKeys.has(key as keyof ViewProps)) {
+      interactivityProps[key] = from[key as keyof ViewProps];
+    }
+  }
+
+  return interactivityProps;
+};
+
 export {
   numberAsInset,
   addInsets,
@@ -177,4 +213,5 @@ export {
   gestureToPressableEvent,
   gestureTouchToPressableEvent,
   splitStyles,
+  extractInteractivityProps,
 };
