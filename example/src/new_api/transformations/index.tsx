@@ -100,18 +100,18 @@ function rotate4(rad: number, x: number, y: number, z: number) {
   ];
 }
 
-function log4(m: number[]) {
-  'worklet';
-  let output = '\n';
-  for (let i = 0; i < m.length; i++) {
-    if (i % 4 === 0) {
-      output += '\n\n';
-    }
-    output += m[i].toFixed(1) + '  ';
-  }
+// function log4(m: number[]) {
+//   'worklet';
+//   let output = '\n';
+//   for (let i = 0; i < m.length; i++) {
+//     if (i % 4 === 0) {
+//       output += '\n\n';
+//     }
+//     output += m[i].toFixed(1) + '  ';
+//   }
 
-  console.log(output);
-}
+//   console.log(output);
+// }
 
 function invert2(m: number[]) {
   'worklet';
@@ -126,8 +126,8 @@ function invert2(m: number[]) {
 
 function toTransformedCoords(point: Coordinate, matrix: number[]) {
   'worklet';
-  const m2 = [matrix[0], matrix[1], matrix[4], matrix[5]];
-  const inv = invert2(m2);
+  const sr_rs = [matrix[0], matrix[1], matrix[4], matrix[5]];
+  const inv = invert2(sr_rs);
   const x = point.x;
   const y = point.y;
   const newX = inv[0] * x + inv[2] * y;
@@ -145,12 +145,14 @@ function createMatrix(
   'worklet';
   let matrix = identity4();
 
+  // scale adjusted matrix
   if (scale !== 1) {
     matrix = multiply4(matrix, translate4(origin.x, origin.y, 0));
     matrix = multiply4(matrix, scale4(scale, scale, 1));
     matrix = multiply4(matrix, translate4(-origin.x, -origin.y, 0));
   }
 
+  // rotate adjusted matrix
   if (rotation !== 0) {
     matrix = multiply4(matrix, translate4(origin.x, origin.y, 0));
     matrix = multiply4(matrix, rotate4(-rotation, 0, 0, 1));
@@ -186,7 +188,22 @@ function applyTransformations(
 
 const SIGNET = require('../../ListWithHeader/signet.png');
 
-function Photo() {
+type Point = {
+  x: number;
+  y: number;
+};
+interface PhotoProps {
+  pointerScale: SharedValue<Point>;
+  pointerTwo: SharedValue<Point>;
+  pointerOne: SharedValue<Point>;
+  pointerRot: SharedValue<Point>;
+}
+function Photo({
+  pointerScale,
+  pointerOne,
+  pointerRot,
+  pointerTwo,
+}: PhotoProps) {
   const [size, setSize] = useState({ width: 0, height: 0 });
   const translation = useSharedValue({ x: 0, y: 0 });
   const origin = useSharedValue({ x: size.width / 2, y: size.height / 2 });
@@ -194,11 +211,6 @@ function Photo() {
   const rotation = useSharedValue(0);
   const isRotating = useSharedValue(false);
   const isScaling = useSharedValue(false);
-
-  const pointerScale = useSharedValue({ x: 0, y: 0 });
-  const pointerTwo = useSharedValue({ x: 0, y: 0 });
-  const pointerOne = useSharedValue({ x: 0, y: 0 });
-  const pointerRot = useSharedValue({ x: 0, y: 0 });
 
   const transform = useSharedValue(identity4());
 
@@ -275,7 +287,7 @@ function Photo() {
           x: size.width / 2 - event.focalX,
           y: size.height / 2 - event.focalY,
         };
-        console.log('d:', size.width, size.height);
+        // --- logging
         console.log('f:', event.focalX, event.focalY);
         console.log('o:', origin.value.x, origin.value.y);
       }
@@ -334,37 +346,49 @@ function Photo() {
     });
 
   const gesture = Gesture.Simultaneous(
-    // rotationGesture,
-    scaleGesture
-    // panGesture,
-    // doubleTapGesture
+    rotationGesture,
+    scaleGesture,
+    panGesture,
+    doubleTapGesture
   );
 
   return (
-    <GestureDetector gesture={gesture}>
-      <Animated.View
-        onLayout={({ nativeEvent }) => {
-          setSize({
-            width: nativeEvent.layout.width,
-            height: nativeEvent.layout.height,
-          });
-        }}
-        style={[styles.container, style]}>
-        <Image source={SIGNET} style={styles.image} resizeMode="contain" />
-        <Pointer coordinates={pointerScale} color={'red'} />
-        <Pointer coordinates={pointerRot} color={'green'} />
-        <Pointer coordinates={pointerOne} color={'#aa0'} />
-        <Pointer coordinates={pointerTwo} color={'#aaf'} />
-        <Pointer coordinates={origin} color={'#0ff'} />
-      </Animated.View>
-    </GestureDetector>
+    <View>
+      <GestureDetector gesture={gesture}>
+        <Animated.View
+          onLayout={({ nativeEvent }) => {
+            setSize({
+              width: nativeEvent.layout.width,
+              height: nativeEvent.layout.height,
+            });
+          }}
+          style={[styles.container, style]}>
+          <Image source={SIGNET} style={styles.image} resizeMode="contain" />
+        </Animated.View>
+      </GestureDetector>
+      <Pointer coordinates={origin} color={'#0ff'} />
+    </View>
   );
 }
 
 export default function Example() {
+  const pointerScale = useSharedValue({ x: 0, y: 0 });
+  const pointerTwo = useSharedValue({ x: 0, y: 0 });
+  const pointerOne = useSharedValue({ x: 0, y: 0 });
+  const pointerRot = useSharedValue({ x: 0, y: 0 });
+
   return (
     <View style={styles.home}>
-      <Photo />
+      <Photo
+        pointerOne={pointerOne}
+        pointerTwo={pointerTwo}
+        pointerRot={pointerRot}
+        pointerScale={pointerScale}
+      />
+      <Pointer coordinates={pointerScale} color={'green'} />
+      <Pointer coordinates={pointerRot} color={'red'} />
+      <Pointer coordinates={pointerOne} color={'#aa0'} />
+      <Pointer coordinates={pointerTwo} color={'#aa0'} />
     </View>
   );
 }
