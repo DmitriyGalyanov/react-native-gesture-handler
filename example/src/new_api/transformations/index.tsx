@@ -18,15 +18,16 @@ function Pointer({
   color?: ColorValue;
 }) {
   const positionStyle = useAnimatedStyle(() => {
+    const SIZE = 16;
     return {
       backgroundColor: color,
       position: 'absolute',
-      width: 16,
-      height: 16,
-      borderRadius: 8,
+      width: SIZE,
+      height: SIZE,
+      borderRadius: SIZE,
       transform: [
-        { translateX: coordinates.value.x - 8 },
-        { translateY: coordinates.value.y - 8 },
+        { translateX: coordinates.value.x - SIZE / 2 },
+        { translateY: coordinates.value.y - SIZE / 2 },
       ],
     };
   }, [coordinates]);
@@ -193,16 +194,18 @@ type Point = {
   y: number;
 };
 interface PhotoProps {
-  pointerScale: SharedValue<Point>;
   pointerTwo: SharedValue<Point>;
   pointerOne: SharedValue<Point>;
   pointerRot: SharedValue<Point>;
+  pointerScale: SharedValue<Point>;
+  pointerOrigin: SharedValue<Point>;
 }
 function Photo({
   pointerScale,
   pointerOne,
   pointerRot,
   pointerTwo,
+  pointerOrigin,
 }: PhotoProps) {
   const [size, setSize] = useState({ width: 0, height: 0 });
   const translation = useSharedValue({ x: 0, y: 0 });
@@ -239,6 +242,10 @@ function Photo({
       pointerRot.value = { x: event.anchorX, y: event.anchorY };
 
       if (!isRotating.value && !isScaling.value) {
+        pointerOrigin.value = {
+          x: size.width / 2 - event.anchorX,
+          y: size.height / 2 - event.anchorY,
+        };
         origin.value = {
           x: size.width / 2 - event.anchorX,
           y: size.height / 2 - event.anchorY,
@@ -282,7 +289,10 @@ function Photo({
       'worklet';
       if (!isRotating.value && !isScaling.value) {
         pointerScale.value = { x: event.focalX, y: event.focalY };
-
+        pointerOrigin.value = {
+          x: size.width / 2 - event.focalX,
+          y: size.height / 2 - event.focalY,
+        };
         origin.value = {
           x: size.width / 2 - event.focalX,
           y: size.height / 2 - event.focalY,
@@ -366,7 +376,6 @@ function Photo({
           <Image source={SIGNET} style={styles.image} resizeMode="contain" />
         </Animated.View>
       </GestureDetector>
-      <Pointer coordinates={origin} color={'#0ff'} />
     </View>
   );
 }
@@ -376,6 +385,7 @@ export default function Example() {
   const pointerTwo = useSharedValue({ x: 0, y: 0 });
   const pointerOne = useSharedValue({ x: 0, y: 0 });
   const pointerRot = useSharedValue({ x: 0, y: 0 });
+  const pointerOrigin = useSharedValue({ x: 0, y: 0 });
 
   return (
     <View style={styles.home}>
@@ -384,11 +394,13 @@ export default function Example() {
         pointerTwo={pointerTwo}
         pointerRot={pointerRot}
         pointerScale={pointerScale}
+        pointerOrigin={pointerOrigin}
       />
-      <Pointer coordinates={pointerScale} color={'green'} />
-      <Pointer coordinates={pointerRot} color={'red'} />
+      <Pointer coordinates={pointerScale} color={'#a0a'} />
+      <Pointer coordinates={pointerRot} color={'#a00'} />
       <Pointer coordinates={pointerOne} color={'#aa0'} />
       <Pointer coordinates={pointerTwo} color={'#aa0'} />
+      <Pointer coordinates={pointerOrigin} color={'#00f'} />
     </View>
   );
 }
