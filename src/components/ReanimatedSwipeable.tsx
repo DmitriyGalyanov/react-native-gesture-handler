@@ -596,6 +596,7 @@ const Swipeable = forwardRef<SwipeableMethods, SwipeableProps>(
     return (
       <GestureDetector gesture={panGesture} touchAction="pan-y">
         <Animated.View
+          testID={props.testID}
           onLayout={onRowLayout}
           style={[styles.container, containerStyle]}>
           {leftElement}
