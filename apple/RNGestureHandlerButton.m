@@ -7,6 +7,7 @@
 //
 
 #import "RNGestureHandlerButton.h"
+#import <React/RCTScrollView.h>
 
 #if !TARGET_OS_OSX
 #import <UIKit/UIKit.h>
@@ -50,13 +51,19 @@
 
 - (BOOL)shouldHandleTouch:(RNGHUIView *)view
 {
+  // if button && enabled, always calls onPress
+  // otherwise, may send something but never onPress
   if ([view isKindOfClass:[RNGestureHandlerButton class]]) {
     RNGestureHandlerButton *button = (RNGestureHandlerButton *)view;
-    return button.userEnabled;
+    bool shouldHandle = button.userEnabled;
+    NSLog(@"Should handle A? %d", shouldHandle);
+    return shouldHandle;
   }
 
 #if !TARGET_OS_OSX
-  return [view isKindOfClass:[UIControl class]] || [view.gestureRecognizers count] > 0;
+  bool shouldHandle = [view isKindOfClass:[UIControl class]] || [view.gestureRecognizers count] > 0;
+  NSLog(@"Should handle B? %d", shouldHandle);
+  return shouldHandle;
 #else
   return [view isKindOfClass:[NSControl class]] || [view.gestureRecognizers count] > 0;
 #endif
@@ -69,16 +76,25 @@
     return [super pointInside:point withEvent:event];
   }
   CGRect hitFrame = UIEdgeInsetsInsetRect(self.bounds, self.hitTestEdgeInsets);
-  return CGRectContainsPoint(hitFrame, point);
+  bool isInside = CGRectContainsPoint(hitFrame, point);
+  // correct output
+  return isInside;
 }
 
 - (RNGHUIView *)hitTest:(CGPoint)point withEvent:(UIEvent *)event
 {
-  RNGHUIView *inner = [super hitTest:point withEvent:event];
-  while (inner && ![self shouldHandleTouch:inner]) {
-    inner = inner.superview;
+  NSArray *inners = self.subviews;
+  RNGHUIView *innermost = (RNGHUIView *)self;
+  RNGHUIView *clickableInnermost = (RNGHUIView *)self;
+
+  for (RNGHUIView *inner in inners) {
+    if ([inner pointInside:point withEvent:event]) {
+      innermost = [inner hitTest:point withEvent:event];
+      break;
+    }
   }
-  return inner;
+
+  return clickableInnermost;
 }
 #endif
 
