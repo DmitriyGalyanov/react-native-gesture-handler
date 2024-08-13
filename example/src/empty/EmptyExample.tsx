@@ -5,15 +5,23 @@ import { FlatList, TouchableOpacity } from 'react-native-gesture-handler';
 export default function App() {
   return (
     <TouchableOpacity
+      hitSlop={7}
       style={styles.touchable}
       onPress={() => console.log('onPress called')}>
       <FlatList
+        hitSlop={6}
         horizontal
         pagingEnabled
-        data={['green', 'blue']}
+        data={[
+          { color: 'green', slop: 4 },
+          { color: 'blue', slop: 5 },
+        ]}
         renderItem={(data) => {
           return (
-            <View style={[{ backgroundColor: data.item }, styles.container]} />
+            <View
+              hitSlop={data.item.slop}
+              style={[{ backgroundColor: data.item.color }, styles.container]}
+            />
           );
         }}
       />
