@@ -1,70 +1,44 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import {
-  GestureHandlerRootView,
-  FlatList,
-  TouchableOpacity,
-} from 'react-native-gesture-handler';
+import { FlatList, TouchableOpacity } from 'react-native-gesture-handler';
 
 export default function App() {
-  const renderItem = React.useCallback(() => {
-    return (
-      <View style={styles.root}>
-        <TouchableOpacity
-          style={styles.touchable}
-          onPress={() => console.log('TouchableOpacity onPress called')}>
-          <FlatList
-            horizontal={true}
-            pagingEnabled={true}
-            data={['red', 'green', 'blue']}
-            renderItem={(data) => {
-              return (
-                <View
-                  style={[{ backgroundColor: data.item }, styles.container]}
-                />
-              );
-            }}
-          />
-          <View>
-            <Text style={styles.title}>Title</Text>
-            <Text style={styles.subtitle}>Subtitle</Text>
-          </View>
-        </TouchableOpacity>
-      </View>
-    );
-  }, []);
-
   return (
-    <GestureHandlerRootView>
+    <TouchableOpacity
+      style={styles.touchable}
+      onPress={() => console.log('onPress called')}>
       <FlatList
-        data={[1, 2, 3, 4, 5]}
-        renderItem={renderItem}
-        contentContainerStyle={styles.list}
+        horizontal
+        pagingEnabled
+        data={['green', 'blue']}
+        renderItem={(data) => {
+          return (
+            <View style={[{ backgroundColor: data.item }, styles.container]} />
+          );
+        }}
       />
-    </GestureHandlerRootView>
+      <View style={styles.textarea}>
+        <Text style={styles.title}>Clickable area</Text>
+      </View>
+    </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    marginBottom: 20,
-  },
-  list: {
-    padding: 20,
-  },
   container: {
     width: 348,
     height: 348,
   },
+  textarea: {
+    height: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   title: {
     fontSize: 18,
-    marginBottom: 5,
-  },
-  subtitle: {
-    fontSize: 14,
   },
   touchable: {
-    height: 300,
+    margin: 'auto',
     width: 350,
     borderWidth: 1,
     borderColor: 'grey',
